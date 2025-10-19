@@ -8,6 +8,7 @@ from src.db.mongo import collection
 from src.kafka.producer import send_crawl_result
 from src.kafka.utils import flatten_post_data_unclassified
 from src.config.settings import KAFKA
+import src.scraper.scraper as scraper
 
 async def kafka_consume(agent_name: str):
     consumer = Consumer({
@@ -48,7 +49,8 @@ async def kafka_consume(agent_name: str):
                     bot_id=agent_name
                 )
 
-                search_data = []
+                # search_data = []
+                search_data = await scraper.scrape_search(keyword=keyword, max_search=12)
                 await asyncio.sleep(10)
 
                 if len(search_data) > 0:

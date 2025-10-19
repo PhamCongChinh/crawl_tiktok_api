@@ -3,10 +3,10 @@ import asyncio
 import datetime
 from pathlib import Path
 import time
-import scraper
+import test
 import json
 from loguru import logger as log
-import scraper
+import test
 from datetime import datetime
 from confluent_kafka import Consumer, Producer, KafkaException
 from confluent_kafka.admin import AdminClient
