@@ -1,9 +1,12 @@
 import asyncio
+from datetime import datetime
 import json
 from confluent_kafka import Consumer, KafkaException
 from loguru import logger as log
-from datetime import datetime
+from src.db.mongo import collection
 
+from kafka.producer import send_crawl_result
+from kafka.utils import flatten_post_data_unclassified
 from src.config.settings import KAFKA
 
 async def kafka_consume(agent_name: str):
@@ -31,6 +34,44 @@ async def kafka_consume(agent_name: str):
                 data = json.loads(value)
                 keyword = data.get("keyword", "")
                 log.info(f"🔑 Keyword: {keyword}")
+
+                send_crawl_result(
+                    type="tiktok_keyword",
+                    task_id=data.get("task_id", ""),
+                    keyword=keyword,
+                    platform=data.get("platform", ""),
+                    created_at=data.get("created_at", ""),
+                    topic=data.get("topic", ""),
+                    assigned_bot=data.get("assigned_bot", ""),
+                    status="RUNNING",
+                    success=True,
+                    bot_id=agent_name
+                )
+
+                search_data = []
+                await asyncio.sleep(10)
+
+                if len(search_data) > 0:
+                    for document in search_data:
+                        doc = flatten_post_data_unclassified(document)
+                        result = collection.update_one(
+                            {"url": doc["url"]},
+                            {"$set": {**doc, "updatedAt": datetime.now()}},
+                            upsert=True
+                        )
+                        log.info(f"✅ Saved: {doc['url']}")
+                send_crawl_result(
+                    type="tiktok_keyword",
+                    task_id=data.get("task_id", ""),
+                    keyword=keyword,
+                    platform=data.get("platform", ""),
+                    created_at=data.get("created_at", ""),
+                    topic=data.get("topic", ""),
+                    assigned_bot=data.get("assigned_bot", ""),
+                    status="DONE",
+                    success=True,
+                    bot_id=agent_name
+                )
             except json.JSONDecodeError:
                 log.error("❌ Invalid JSON")
     
