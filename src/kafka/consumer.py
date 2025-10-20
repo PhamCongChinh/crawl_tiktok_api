@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime
 import json
+import httpx
 from confluent_kafka import Consumer, KafkaException
 from loguru import logger as log
 from src.db.mongo import collection
@@ -54,14 +55,39 @@ async def kafka_consume(agent_name: str):
                 await asyncio.sleep(10)
 
                 if len(search_data) > 0:
+                    docs = []  # Gom tất cả doc vào đây
                     for document in search_data:
                         doc = flatten_post_data_unclassified(document)
-                        result = collection.update_one(
+                        docs.append(doc)  # gom vào danh sách
+
+                        collection.update_one(
                             {"url": doc["url"]},
                             {"$set": {**doc, "updatedAt": datetime.now()}},
                             upsert=True
                         )
                         log.info(f"✅ Saved: {doc['url']}")
+
+                    api_url = "http://103.97.125.64:4416/api/v1/posts/insert-unclassified-org-posts"
+                    headers = {"Content-Type": "application/json"}
+
+                    payload = {
+                        "index": "not_classify_org_posts",
+                        "data": docs,
+                        "upsert": True
+                    }
+
+                    try:
+                        async with httpx.AsyncClient(timeout=30.0) as client:
+                            response = await client.post(api_url, json=payload, headers=headers)
+                            if response.status_code == 200:
+                                log.info(f"📤 Sent {len(docs)} docs to API successfully")
+                            else:
+                                log.error(f"❌ Failed to send ({response.status_code}): {response.text}")
+                    except httpx.RequestError as e:
+                        log.error(f"⚠️ Network error while sending docs: {e}")
+                    except Exception as e:
+                        log.error(f"❌ Unexpected error: {e}")
+
                 send_crawl_result(
                     type="tiktok_keyword",
                     task_id=data.get("task_id", ""),
