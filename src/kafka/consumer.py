@@ -67,6 +67,10 @@ async def kafka_consume(agent_name: str):
                         )
                         log.info(f"✅ Saved: {doc['url']}")
 
+                    for d in docs:
+                        d.pop("createdAt", None)
+                        d.pop("updatedAt", None)
+
                     api_url = "http://103.97.125.64:4416/api/v1/posts/insert-unclassified-org-posts"
                     headers = {"Content-Type": "application/json"}
 
